@@ -232,7 +232,8 @@ struct DofObjectHierarchyDesc {
     AtomicU32 sync;
     
 #ifdef MADRONA_GPU_MODE
-    static_assert(false, "Need to implement GPU DOF object hierarchy");
+    // static_assert(false, "Need to implement GPU DOF object hierarchy");
+    Entity parent;
 #else
     Entity parent;
 #endif

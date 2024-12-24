@@ -82,6 +82,7 @@ GaussMinimizationNode::GaussMinimizationNode(
 
 void GaussMinimizationNode::solve(int32_t invocation_idx)
 {
+#if 0
     uint32_t total_resident_warps = (blockDim.x * gridDim.x) / 32;
 
     uint32_t total_num_worlds = mwGPU::GPUImplConsts::get().numWorlds;
@@ -168,6 +169,7 @@ void GaussMinimizationNode::solve(int32_t invocation_idx)
 
         world_idx += total_resident_warps;
     }
+#endif
 }
 
 TaskGraph::NodeID GaussMinimizationNode::addToGraph(
@@ -1462,11 +1464,11 @@ TaskGraphNodeID setupCVSolverTasks(TaskGraphBuilder &builder,
 #endif
 
 #ifdef MADRONA_GPU_MODE
-        auto gauss_node = builder.addToGraph<tasks::GaussMinimizationNode>(
+        cur_node = builder.addToGraph<tasks::GaussMinimizationNode>(
                 {run_narrowphase});
 
-        gauss_node = builder.addToGraph<ResetTmpAllocNode>(
-                {gauss_node});
+        cur_node = builder.addToGraph<ResetTmpAllocNode>(
+                {cur_node});
 #else
         auto compute_center_of_mass = builder.addToGraph<ParallelForNode<Context,
              tasks::computeCenterOfMass,
@@ -1526,7 +1528,6 @@ TaskGraphNodeID setupCVSolverTasks(TaskGraphBuilder &builder,
                  DofObjectAcceleration,
                  DofObjectNumDofs
             >>({gauss_node});
-#endif
 
         auto post_forward_kinematics = builder.addToGraph<ParallelForNode<Context,
              tasks::forwardKinematics,
@@ -1539,6 +1540,7 @@ TaskGraphNodeID setupCVSolverTasks(TaskGraphBuilder &builder,
                 Rotation,
                 CVPhysicalComponent
             >>({post_forward_kinematics});
+#endif
 
         cur_node = builder.addToGraph<
             ClearTmpNode<Contact>>({cur_node});
@@ -1652,6 +1654,7 @@ Entity makeCVBodyGroup(Context &ctx)
 }
 
 void initializeHierarchies(Context &ctx) {
+#if 0
     uint32_t world_id = ctx.worldID().idx;
     StateManager *state_mgr = ctx.getStateManager();
     BodyGroupHierarchy *hiers = state_mgr->getWorldComponents<
@@ -1696,6 +1699,7 @@ void initializeHierarchies(Context &ctx) {
         // Forward kinematics to get positions
         tasks::forwardKinematics(ctx, grp);
     }
+#endif
 }
 
 
