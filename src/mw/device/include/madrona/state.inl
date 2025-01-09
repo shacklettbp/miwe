@@ -613,4 +613,11 @@ SingletonT * StateManager::exportSingleton()
     return getSingletonColumn<SingletonT>();
 }
 
+uint32_t StateManager::currentMemoryRangeGrowID(uint32_t elem_id)
+{
+    uint32_t max_grow_id =
+        memory_range_elements_[elem_id].growIDGen.load_relaxed();
+    return max_grow_id;
+}
+
 }

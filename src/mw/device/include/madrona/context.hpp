@@ -70,6 +70,12 @@ public:
     inline MemoryRange allocMemoryRange(uint32_t element_id, 
                                         CountT num_elements);
 
+    template <typename ElementT>
+    void growMemoryRange(MemoryRange &mr, CountT num_elements);
+    inline void growMemoryRange(MemoryRange &mr,
+                                uint32_t element_id,
+                                CountT num_elements);
+
     inline void freeMemoryRange(MemoryRange memory_range);
 
     template <typename ElementT>

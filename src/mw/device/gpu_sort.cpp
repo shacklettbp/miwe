@@ -1191,17 +1191,6 @@ void SortNodeBase::sortSetupMemoryRange(int32_t)
             numRows;
     }
 
-#if 0
-    // This is only necessary if the global number of entities is 0
-    auto &clear_count_node_data = taskgraph.getNodeData(clearWorldCountData);
-    if (numRows == 0) {
-        clear_count_node_data.numDynamicInvocations =
-            mwGPU::GPUImplConsts::get().numWorlds;
-    } else {
-        clear_count_node_data.numDynamicInvocations = 0;
-    }
-#endif
-
     indicesFinal = (int *)(tmp_buffer + indices_final_offset);
     columnStaging = tmp_buffer + column_copy_offset;
     bool alt_final = numPasses % 2 == 1;
@@ -1574,7 +1563,7 @@ void SortNodeBase::RearrangeNode::rearrangeMemoryRangeElements(int32_t invocatio
 
     auto rm_staging = (MemoryRange *)parent.columnStaging;
     auto dst = (MemoryRange *)state_mgr->getMemoryRangeColumn(parent.archetypeID, 0);
-    auto status = (MemoryRange::Status *)state_mgr->getMemoryRangeColumn(parent.archetypeID, 1);
+    // auto status = (MemoryRange::Status *)state_mgr->getMemoryRangeColumn(parent.archetypeID, 1);
 
     MemoryRange rm = rm_staging[invocation_idx];
 
@@ -1766,7 +1755,8 @@ TaskGraph::NodeID SortNodeBase::addToGraphArchetype(
 TaskGraph::NodeID SortNodeBase::addToGraphMemoryRange(
     TaskGraph::Builder &builder,
     Span<const TaskGraph::NodeID> dependencies,
-    uint32_t unit_id)
+    uint32_t unit_id,
+    uint32_t keys_col_idx)
 {
     using namespace mwGPU;
 
@@ -1775,7 +1765,8 @@ TaskGraph::NodeID SortNodeBase::addToGraphMemoryRange(
 
     StateManager *state_mgr = getStateManager();
 
-    auto keys_col = (uint32_t *)state_mgr->getMemoryRangeColumn(unit_id, 1);
+    auto keys_col = (uint32_t *)state_mgr->getMemoryRangeColumn(
+            unit_id, keys_col_idx);
 
     // Optimize for sorts on the WorldID column, where the 
     // max # of worlds is known
@@ -1783,6 +1774,9 @@ TaskGraph::NodeID SortNodeBase::addToGraphMemoryRange(
     int32_t num_worlds = GPUImplConsts::get().numWorlds;
     // num_worlds + 1 to leave room for columns with WorldID == -1
     int32_t num_bits = 32 - __clz(MemoryRange::Status::Freed + 1);
+    if (keys_col_idx == 2) {
+        num_bits = 32 - __clz(state_mgr->currentMemoryRangeGrowID(unit_id));
+    }
     num_passes = utils::divideRoundUp(num_bits, 8);
 
     // num_passes should just be 1

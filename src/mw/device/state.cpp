@@ -222,9 +222,11 @@ StateManager::MemoryRangeStore::MemoryRangeStore(
     tbl.numColumns = 3;
     tbl.numRows.store_relaxed(0);
 
-    TypeInfo infos[3] = {
+    TypeInfo infos[4] = {
         { .alignment = alignof(MemoryRange), .numBytes = sizeof(MemoryRange) },
         { .alignment = alignof(MemoryRange::Status), .numBytes = sizeof(MemoryRange::Status) },
+        // This is the grow ID
+        { .alignment = alignof(uint32_t), .numBytes = sizeof(uint32_t) },
         type_info,
     };
 
@@ -240,7 +242,7 @@ StateManager::MemoryRangeStore::MemoryRangeStore(
     int32_t max_col_size = 0;
 
 #pragma unroll
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 4; ++i) {
         TypeInfo cur_info = infos[i];
 
         uint64_t reserve_bytes = alloc->roundUpReservation(
@@ -659,6 +661,7 @@ MemoryRange StateManager::allocMemoryRange(
 
     MemoryRange *range_map_col = (MemoryRange *)tbl.columns[0];
     MemoryRange::Status *status_col = (MemoryRange::Status *)tbl.columns[1];
+    uint32_t *grow_id_col = (uint32_t *)tbl.columns[2];
 
     for (int i = 0; i < num_elements; ++i) {
         Loc loc = {
@@ -682,9 +685,73 @@ MemoryRange StateManager::allocMemoryRange(
 
         range_map_col[row + i] = range_map;
         status_col[row + i] = MemoryRange::Status::Allocated;
+        grow_id_col[row + i] = 0xFFFF'FFFF;
     }
 
     return range_map_col[row];
+}
+
+void StateManager::growMemoryRange(
+        MemoryRange &mr, WorldID world_id,
+        uint32_t element_id, uint32_t num_elements)
+{
+    uint32_t total_num_elements = mr.numElements + num_elements;
+
+    auto &range_map_store = *memory_range_elements_[element_id];
+    range_map_store.needsSort = true;
+    range_map_store.needsGrowSort = true;
+
+    MemoryRangeTable &tbl = range_map_store.tbl;
+
+    int32_t row = tbl.numRows.fetch_add_relaxed(num_elements);
+    uint32_t grow_id = range_map_store.growIDGen.fetch_add_relaxed(1);
+
+    if (row + num_elements-1 >= tbl.mappedRows) {
+        growTable(tbl, row, num_elements);
+    }
+
+    int32_t element_slot_idx = getMemoryRangeElementSlotIdx(
+            mr_element_store_, num_elements);
+
+    MemoryRange *range_map_col = (MemoryRange *)tbl.columns[0];
+    MemoryRange::Status *status_col = (MemoryRange::Status *)tbl.columns[1];
+    uint32_t *grow_id_col = (uint32_t *)tbl.columns[2];
+
+    // Fill in the data for the new elements
+    for (int i = 0; i < num_elements; ++i) {
+        Loc loc = {
+            element_id,
+            row + i,
+        };
+
+        int32_t available_slot =
+            mr_element_store_.availableSlots[element_slot_idx + i];
+
+        MemoryRangeElementStore::Slot &slot = mr_element_store_.slots[
+            available_slot];
+
+        slot.loc = loc;
+
+        MemoryRange new_mr = {
+            .numElements = mr.numElements,
+            .gen = slot.gen,
+            .id = available_slot
+        };
+
+        range_map_col[row + i] = range_map;
+        status_col[row + i] = MemoryRange::Status::Allocated;
+        grow_id_col[row + i] = grow_id;
+    }
+
+    // Update the grow_id for the old elements
+    MemoryRangeElementStore::Slot old_slot = 
+        mr_element_store_.slots[mr.id];
+    uint32_t old_row = old_slot.loc.row;
+    for (int i = 0; i < mr.numElements; ++i) {
+        grow_id_col[old_row + i] = grow_id;
+    }
+    
+    mr.numElements += num_elements;
 }
 
 Entity StateManager::makeEntityNow(WorldID world_id, uint32_t archetype_id)

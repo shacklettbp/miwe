@@ -120,6 +120,8 @@ public:
     MemoryRange allocMemoryRange(WorldID world_id,
                            uint32_t elem_id, uint32_t num_elems);
     void freeMemoryRange(MemoryRange memory_range);
+    void growMemoryRange(MemoryRange &mr, WorldID world_id,
+                         uint32_t elem_id, uint32_t num_elems);
 
     template <typename ElementT>
     ElementT * memoryRangePointer(MemoryRange memory_range);
@@ -165,15 +167,9 @@ public:
     inline void * getArchetypeColumn(uint32_t archetype_id,
                                      int32_t column_idx);
 
-    // Returns pointer to MemoryRange
-    inline void * getMemoryRangeColumn(uint32_t unit_id);
-    // Returns pointer to status values of the units
-    inline void * getMemoryRangeStatus(uint32_t unit_id);
-    // Returns pointer to the actual units
-    inline void * getMemoryRangeUnits(uint32_t unit_id);
-
     // 0: RangeMap *
     // 1: RangeMap::Status *
+    // 1: uint32_t *           (grow ID)
     // 2: RangeMapUnitT *
     inline void * getMemoryRangeColumn(uint32_t elem_id, uint32_t col_idx);
 
@@ -252,6 +248,8 @@ public:
     template <typename SingletonT>
     SingletonT * exportSingleton();
 
+    uint32_t currentMemoryRangeGrowID(uint32_t elem_id);
+
 private:
     template <typename SingletonT>
     struct SingletonArchetype : public madrona::Archetype<SingletonT> {};
@@ -308,7 +306,10 @@ private:
         TypeInfo typeInfo;
         MemoryRangeTable tbl;
 
+        AtomicU32 growIDGen;
+
         bool needsSort;
+        bool needsGrowSort;
     };
 
     struct ArchetypeStore {
