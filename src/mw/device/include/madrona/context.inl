@@ -51,11 +51,11 @@ void Context::growMemoryRange(MemoryRange &mr, CountT num_elements)
     growMemoryRange(mr, element_id, num_elements);
 }
 
-inline void Context:growMemoryRange(
+inline void Context::growMemoryRange(
         MemoryRange &mr, uint32_t element_id, CountT num_elements)
 {
     StateManager *state_mgr = mwGPU::getStateManager();
-    state_mgr->growMemoryRange(world_id_, mr, element_id, num_elements);
+    state_mgr->growMemoryRange(mr, world_id_, element_id, num_elements);
 }
 
 template <typename ElementT>

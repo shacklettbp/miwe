@@ -211,7 +211,8 @@ StateManager::MemoryRangeStore::MemoryRangeStore(
         uint32_t max_num_elements,
         TypeInfo type_info)
     : typeInfo(type_info),
-      needsSort(false)
+      needsSort(false),
+      growIDGen(0)
 {
     using namespace mwGPU;
 
@@ -738,7 +739,7 @@ void StateManager::growMemoryRange(
             .id = available_slot
         };
 
-        range_map_col[row + i] = range_map;
+        range_map_col[row + i] = new_mr;
         status_col[row + i] = MemoryRange::Status::Allocated;
         grow_id_col[row + i] = grow_id;
     }

@@ -248,7 +248,7 @@ public:
     template <typename SingletonT>
     SingletonT * exportSingleton();
 
-    uint32_t currentMemoryRangeGrowID(uint32_t elem_id);
+    inline uint32_t currentMemoryRangeGrowID(uint32_t elem_id);
 
 private:
     template <typename SingletonT>
